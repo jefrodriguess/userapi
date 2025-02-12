@@ -4,14 +4,56 @@ import bcrypt from "bcrypt"; // Cripitografa a Senha
 import jwt from "jsonwebtoken"; // Cria e valida tokens JWT
 import dotenv from "dotenv"; // Variaveis de ambiente do arquivo  .env
 
-dotenv.config();
+import User from "./models/usuarioModel.js";
+
+dotenv.config(); // carrega as variáveis de ambiente do arquivo .env
 
 const app = express();
 
 app.use(express.json());
 
+//Rota aberta 
 app.get("/", (req, res) => {
   res.status(200).json({ msg: "Bem Vindo a nossa API" });
+});
+
+app.post("/auth/register", async (req, res) => {
+  const { name, email, password, confirmpassword } = req.body;
+  if (!name) {
+    return res.status(422).json({ msg: "O nome é obrigatório!" })
+  }
+  if (!email) {
+    return res.status(422).json({ msg: "O email é obrigatório!" })
+  }
+  if (!password) {
+    return res.status(422).json({ msg: "A Senha é obrigatória!" })
+  }
+  if (password != confirmpassword) {
+    return res.status(422).json({ msg: "A Senha e a confirmação precisam ser iguais!" });
+  }
+
+  const userExists = await User.findOne({ email: email });
+
+  if (userExists) {
+    return res.status(422).json({ msg: "Por favor, utilize outro e-mail" });
+  }
+
+  const salt = await bcrypt.genSalt(12);
+  const passwordHash = await bcrypt.hash(password, salt);
+
+  const user = new User({
+    name,
+    email,
+    passwordHash,
+  });
+
+  try {
+    await user.save();
+    res.status(201).json({ msg: "Usuário criado com sucesso!" });
+  } catch (error) {
+    res.status(500).json({ msg: error });
+  }
+
 });
 
 const dbUser = process.env.DB_USER;
@@ -27,6 +69,6 @@ mongoose
   })
   .catch((err) => console.log(err));
 
-  //node app.js ou node ..app.js
+//node app.js ou node ..app.js
 
-  
+
